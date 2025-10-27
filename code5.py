@@ -1,54 +1,31 @@
-import tensorflow as tf
-from tensorflow.keras import layers, models
-import matplotlib.pyplot as plt
-import numpy as np
+import tensorflow as tf, numpy as np, matplotlib.pyplot as plt
 
-(X_train, y_train), (X_test, y_test) = tf.keras.datasets.mnist.load_data()
+(xtr, ytr), (xte, yte) = tf.keras.datasets.mnist.load_data()
+xtr, xte = xtr[..., None]/255.0, xte[..., None]/255.0
 
-X_train = X_train.reshape(-1, 28, 28, 1) / 255.0
-X_test = X_test.reshape(-1, 28, 28, 1) / 255.0
-
-model = models.Sequential([
-    layers.Conv2D(32, (3,3), activation='relu', input_shape=(28,28,1)),
-    layers.MaxPooling2D((2,2)),
-    layers.Conv2D(64, (3,3), activation='relu'),
-    layers.MaxPooling2D((2,2)),
-    layers.Flatten(),
-    layers.Dense(128, activation='relu'),
-    layers.Dropout(0.5),
-    layers.Dense(10, activation='softmax') 
+m = tf.keras.Sequential([
+  tf.keras.layers.Conv2D(32, 3, activation='relu', input_shape=(28,28,1)),
+  tf.keras.layers.MaxPool2D(2),
+  tf.keras.layers.Conv2D(64, 3, activation='relu'),
+  tf.keras.layers.MaxPool2D(2),
+  tf.keras.layers.Flatten(),
+  tf.keras.layers.Dense(128, activation='relu'),
+  tf.keras.layers.Dropout(0.5),
+  tf.keras.layers.Dense(10, activation='softmax')
 ])
 
-model.summary()
+m.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['acc'])
+h = m.fit(xtr, ytr, epochs=5, validation_data=(xte, yte), verbose=1)
+print(f"\n✅ Test Accuracy: {m.evaluate(xte, yte, verbose=0)[1]*100:.2f}%")
 
-model.compile(optimizer='adam',
-              loss='sparse_categorical_crossentropy',
-              metrics=['accuracy'])
-
-history = model.fit(X_train, y_train, epochs=5,
-                    validation_data=(X_test, y_test))
--
-test_loss, test_acc = model.evaluate(X_test, y_test, verbose=2)
-print(f"\n✅ Test Accuracy: {test_acc*100:.2f}%")
-
-plt.figure(figsize=(10,5))
-plt.subplot(1,2,1)
-plt.plot(history.history['accuracy'], label='Train Acc')
-plt.plot(history.history['val_accuracy'], label='Val Acc')
-plt.title('Accuracy')
-plt.legend()
-
-plt.subplot(1,2,2)
-plt.plot(history.history['loss'], label='Train Loss')
-plt.plot(history.history['val_loss'], label='Val Loss')
-plt.title('Loss')
-plt.legend()
+plt.figure(figsize=(10,4))
+for i, k in enumerate(['acc','loss']):
+    plt.subplot(1,2,i+1)
+    plt.plot(h.history[k], label='Train')
+    plt.plot(h.history[f'val_{k}'], label='Val'); plt.legend(); plt.title(k.capitalize())
 plt.show()
 
-i = np.random.randint(0, len(X_test))
-img = X_test[i]
-pred = np.argmax(model.predict(img.reshape(1,28,28,1)))
-plt.imshow(img.squeeze(), cmap='gray')
-plt.title(f"Predicted: {pred}, Actual: {y_test[i]}")
-plt.axis('off')
-plt.show()
+i = np.random.randint(len(xte))
+p = np.argmax(m.predict(xte[i][None]))
+plt.imshow(xte[i].squeeze(), cmap='gray')
+plt.title(f"Pred:{p}, True:{yte[i]}"); plt.axis('off'); plt.show()
