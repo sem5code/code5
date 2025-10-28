@@ -1,31 +1,95 @@
-import tensorflow as tf, numpy as np, matplotlib.pyplot as plt
+INF = 999
 
-(xtr, ytr), (xte, yte) = tf.keras.datasets.mnist.load_data()
-xtr, xte = xtr[..., None]/255.0, xte[..., None]/255.0
+n = int(input("Enter number of nodes: "))
 
-m = tf.keras.Sequential([
-  tf.keras.layers.Conv2D(32, 3, activation='relu', input_shape=(28,28,1)),
-  tf.keras.layers.MaxPool2D(2),
-  tf.keras.layers.Conv2D(64, 3, activation='relu'),
-  tf.keras.layers.MaxPool2D(2),
-  tf.keras.layers.Flatten(),
-  tf.keras.layers.Dense(128, activation='relu'),
-  tf.keras.layers.Dropout(0.5),
-  tf.keras.layers.Dense(10, activation='softmax')
-])
+graph = []
+print("Enter the cost matrix (use 999 for infinity):")
+for i in range(n):
+    row = list(map(int, input(f"Row {i+1}: ").split()))
+    graph.append(row)
 
-m.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['acc'])
-h = m.fit(xtr, ytr, epochs=5, validation_data=(xte, yte), verbose=1)
-print(f"\n✅ Test Accuracy: {m.evaluate(xte, yte, verbose=0)[1]*100:.2f}%")
+distance = [[INF] * n for _ in range(n)]
 
-plt.figure(figsize=(10,4))
-for i, k in enumerate(['acc','loss']):
-    plt.subplot(1,2,i+1)
-    plt.plot(h.history[k], label='Train')
-    plt.plot(h.history[f'val_{k}'], label='Val'); plt.legend(); plt.title(k.capitalize())
-plt.show()
+for i in range(n):
+    for j in range(n):
+        distance[i][j] = graph[i][j]
 
-i = np.random.randint(len(xte))
-p = np.argmax(m.predict(xte[i][None]))
-plt.imshow(xte[i].squeeze(), cmap='gray')
-plt.title(f"Pred:{p}, True:{yte[i]}"); plt.axis('off'); plt.show()
+for k in range(n):
+    for i in range(n):
+        for j in range(n):
+            if distance[i][j] > distance[i][k] + distance[k][j]:
+                distance[i][j] = distance[i][k] + distance[k][j]
+
+print("\nFinal Distance Vector Routing Table:")
+for i in range(n):
+    print(f"From Node {i+1}: ", distance[i])
+
+'''Enter number of nodes: 3
+Enter the cost matrix (use 999 for infinity):
+Row 1: 0 2 999
+Row 2: 2 0 3
+Row 3: 999 3 0
+Final Distance Vector Routing Table:
+From Node 1: [0, 2, 5]
+From Node 2: [2, 0, 3]
+From Node 3: [5, 3, 0]
+'''
+print("\n")
+
+import heapq
+
+def dijkstra(graph, start):
+    n = len(graph)
+    visited = [False] * n
+    distance = [float('inf')] * n
+    distance[start] = 0
+    pq = [(0, start)]  
+
+    while pq:
+        dist, current = heapq.heappop(pq)
+
+        if visited[current]:
+            continue
+
+        visited[current] = True
+
+        for neighbor in range(n):
+            if graph[current][neighbor] != 999:  
+                new_dist = distance[current] + graph[current][neighbor]
+                if new_dist < distance[neighbor]:
+                    distance[neighbor] = new_dist
+                    heapq.heappush(pq, (new_dist, neighbor))
+
+    return distance
+
+n = int(input("Enter number of nodes: "))
+graph = []
+print("Enter the cost matrix (999 for no link):")
+for i in range(n):
+    row = list(map(int, input(f"Row {i+1}: ").split()))
+    graph.append(row)
+
+for i in range(n):
+    print(f"\nShortest paths from Node {i+1}:")
+    result = dijkstra(graph, i)
+    for j in range(n):
+        print(f"To Node {j+1}: {result[j]}")
+
+'''Enter number of nodes: 3
+Enter the cost matrix (999 for no link):
+Row 1: 0 2 999
+Row 2: 2 0 3
+Row 3: 999 3 0
+Shortest paths from Node 1:
+To Node 1: 0
+To Node 2: 2
+To Node 3: 5
+Shortest paths from Node 2:
+To Node 1: 2
+To Node 2: 0
+To Node 3: 3
+Shortest paths from Node 3:
+To Node 1: 5
+To Node 2: 3
+To Node 3: 0
+'''
