@@ -1,0 +1,80 @@
+---
+# Simplified local deployment playbook for this machine (Linux)
+# - No MongoDB
+# - Designed to run against localhost (ansible_connection=local)
+
+- name: Deploy exrp5-ansible Node app (local)
+  hosts: localhost
+  connection: local
+  become: true
+
+  vars:
+    app_name: exrp5-ansible
+    app_path: /opt/exrp5-ansible
+    node_version_setup: "https://deb.nodesource.com/setup_18.x"
+    port: 4000
+    node_env: production
+
+  tasks:
+    - name: Ensure apt cache is up to date
+      apt:
+        update_cache: yes
+
+    - name: Install prerequisites
+      apt:
+        name:
+          - curl
+          - build-essential
+        state: present
+
+    - name: Add NodeSource repository (Node 18)
+      command: bash -c "curl -sL {{ node_version_setup }} | bash -"
+
+    - name: Install Node.js
+      apt:
+        name: nodejs
+        state: present
+
+    - name: Ensure application directory exists
+      file:
+        path: "{{ app_path }}"
+        state: directory
+        owner: "{{ ansible_user_id }}"
+        group: "{{ ansible_user_id }}"
+        mode: '0755'
+
+    - name: Copy application files to local target directory
+      synchronize:
+        src: "{{ playbook_dir }}/.."
+        dest: "{{ app_path }}"
+        recursive: yes
+        delete: no
+      delegate_to: localhost
+
+    - name: Install npm dependencies (production)
+      npm:
+        path: "{{ app_path }}"
+        production: yes
+      environment:
+        NODE_ENV: "{{ node_env }}"
+
+    - name: Create .env from template (PORT only)
+      template:
+        src: ".env.j2"
+        dest: "{{ app_path }}/.env"
+        owner: "{{ ansible_user_id }}"
+        group: "{{ ansible_user_id }}"
+        mode: '0644'
+
+    - name: Create systemd service file
+      template:
+        src: "exrp5.service.j2"
+        dest: "/etc/systemd/system/{{ app_name }}.service"
+        mode: '0644'
+
+    - name: Reload systemd and enable service
+      systemd:
+        daemon_reload: yes
+        name: "{{ app_name }}.service"
+        enabled: yes
+        state: restarted

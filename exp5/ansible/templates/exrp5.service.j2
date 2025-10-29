@@ -1,0 +1,15 @@
+[Unit]
+Description={{ app_name }} Node App
+After=network.target
+
+[Service]
+Type=simple
+User={{ ansible_user_id }}
+WorkingDirectory={{ app_path }}
+ExecStart=/usr/bin/node {{ app_path }}/index.js
+Restart=on-failure
+Environment=NODE_ENV=production
+EnvironmentFile={{ app_path }}/.env
+
+[Install]
+WantedBy=multi-user.target
